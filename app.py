@@ -11,91 +11,60 @@ st.title("🔥 AI XAUUSD PRO Smart Money System")
 # Timeframe selector
 timeframe = st.selectbox("Select Timeframe", ["1h", "4h", "1d"])
 
-# Download Data
+# Download data
 data = yf.download("GC=F", period="3mo", interval=timeframe)
 
-# Check if data loaded
 if data.empty:
-    st.error("❌ No data loaded. Try different timeframe.")
+    st.error("No data loaded.")
     st.stop()
 
-data.dropna(inplace=True)
+data = data.dropna().copy()
 
-# ATR Calculation (Safe)
-try:
-    atr_indicator = ta.volatility.AverageTrueRange(
-        high=data['High'],
-        low=data['Low'],
-        close=data['Close']
-    )
-    data['ATR'] = atr_indicator.average_true_range()
-except:
-    data['ATR'] = np.nan
+# ==============================
+# ATR
+# ==============================
+atr = ta.volatility.AverageTrueRange(
+    high=data["High"],
+    low=data["Low"],
+    close=data["Close"]
+)
 
-# Swing Detection
-data['Swing_High'] = data['High'][
-    (data['High'] > data['High'].shift(1)) &
-    (data['High'] > data['High'].shift(-1))
-]
-
-data['Swing_Low'] = data['Low'][
-    (data['Low'] < data['Low'].shift(1)) &
-    (data['Low'] < data['Low'].shift(-1))
-]
+data["ATR"] = atr.average_true_range()
 
 # ==============================
 # Break of Structure (SAFE)
 # ==============================
-
 bos_signal = "Neutral"
-
-if len(data) > 25:
-
-    latest_close = data['Close'].iloc[-1]
-
-    prev_high_series = data['High'].rolling(20).max()
-    prev_low_series = data['Low'].rolling(20).min()
-
-    prev_high = prev_high_series.iloc[-2]
-    prev_low = prev_low_series.iloc[-2]
-
-    if pd.notna(prev_high) and pd.notna(prev_low):
-
-        if latest_close > prev_high:
-            bos_signal = "Bullish BOS 🚀"
-
-        elif latest_close < prev_low:
-            bos_signal = "Bearish BOS 🔻"
-
-# ==============================
-# Liquidity Sweep (SAFE)
-# ==============================
-
 liquidity = "No Sweep"
-
-if len(data) > 25:
-
-    if pd.notna(prev_high) and pd.notna(prev_low):
-
-        if data['High'].iloc[-2] > prev_high and latest_close < prev_high:
-            liquidity = "Buy Side Liquidity Sweep 🔥"
-
-        elif data['Low'].iloc[-2] < prev_low and latest_close > prev_low:
-            liquidity = "Sell Side Liquidity Sweep 🔥"
-
-# ==============================
-# Stop Loss Suggestion (ATR Based)
-# ==============================
-
 stop_loss = "N/A"
 
-if pd.notna(data['ATR'].iloc[-1]):
+if len(data) > 30:
 
-    atr_value = data['ATR'].iloc[-1]
+    latest_close = float(data["Close"].iloc[-1])
+
+    prev_high = float(data["High"].rolling(20).max().iloc[-2])
+    prev_low = float(data["Low"].rolling(20).min().iloc[-2])
+
+    # BOS
+    if latest_close > prev_high:
+        bos_signal = "Bullish BOS 🚀"
+    elif latest_close < prev_low:
+        bos_signal = "Bearish BOS 🔻"
+
+    # Liquidity Sweep
+    last_high = float(data["High"].iloc[-2])
+    last_low = float(data["Low"].iloc[-2])
+
+    if last_high > prev_high and latest_close < prev_high:
+        liquidity = "Buy Side Liquidity Sweep 🔥"
+    elif last_low < prev_low and latest_close > prev_low:
+        liquidity = "Sell Side Liquidity Sweep 🔥"
+
+    # ATR Stop Loss
+    atr_value = float(data["ATR"].iloc[-1])
 
     if bos_signal == "Bullish BOS 🚀":
         stop_loss = round(latest_close - atr_value, 2)
-
     elif bos_signal == "Bearish BOS 🔻":
         stop_loss = round(latest_close + atr_value, 2)
 
@@ -107,7 +76,7 @@ col1, col2, col3 = st.columns(3)
 
 col1.metric("Market Structure", bos_signal)
 col2.metric("Liquidity Status", liquidity)
-col3.metric("Suggested SL (ATR)", stop_loss)
+col3.metric("Suggested SL", stop_loss)
 
 # ==============================
 # Candlestick Chart
@@ -115,10 +84,10 @@ col3.metric("Suggested SL (ATR)", stop_loss)
 
 fig = go.Figure(data=[go.Candlestick(
     x=data.index,
-    open=data['Open'],
-    high=data['High'],
-    low=data['Low'],
-    close=data['Close']
+    open=data["Open"],
+    high=data["High"],
+    low=data["Low"],
+    close=data["Close"]
 )])
 
 fig.update_layout(
