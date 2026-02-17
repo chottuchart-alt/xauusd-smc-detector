@@ -3,7 +3,6 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import ta
 
 st.set_page_config(layout="wide")
 st.title("🔥 AI XAUUSD PRO Smart Money System")
@@ -11,29 +10,30 @@ st.title("🔥 AI XAUUSD PRO Smart Money System")
 # Timeframe selector
 timeframe = st.selectbox("Select Timeframe", ["1h", "4h", "1d"])
 
-# Download data
+# Download Data
 data = yf.download("GC=F", period="3mo", interval=timeframe)
 
 if data.empty:
-    st.error("No data loaded.")
+    st.error("No data loaded. Try again.")
     st.stop()
 
 data = data.dropna().copy()
 
 # ==============================
-# ATR
+# Manual ATR Calculation (SAFE)
 # ==============================
-atr = ta.volatility.AverageTrueRange(
-    high=data["High"],
-    low=data["Low"],
-    close=data["Close"]
-)
 
-data["ATR"] = atr.average_true_range()
+data["H-L"] = data["High"] - data["Low"]
+data["H-PC"] = abs(data["High"] - data["Close"].shift(1))
+data["L-PC"] = abs(data["Low"] - data["Close"].shift(1))
+
+data["TR"] = data[["H-L", "H-PC", "L-PC"]].max(axis=1)
+data["ATR"] = data["TR"].rolling(14).mean()
 
 # ==============================
-# Break of Structure (SAFE)
+# BOS + Liquidity Logic
 # ==============================
+
 bos_signal = "Neutral"
 liquidity = "No Sweep"
 stop_loss = "N/A"
@@ -45,7 +45,7 @@ if len(data) > 30:
     prev_high = float(data["High"].rolling(20).max().iloc[-2])
     prev_low = float(data["Low"].rolling(20).min().iloc[-2])
 
-    # BOS
+    # Break of Structure
     if latest_close > prev_high:
         bos_signal = "Bullish BOS 🚀"
     elif latest_close < prev_low:
