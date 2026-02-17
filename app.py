@@ -11,7 +11,7 @@ st.title("🔥 AI XAUUSD PRO Smart Money System")
 timeframe = st.selectbox("Select Timeframe", ["1h", "4h", "1d"])
 
 # Download Data
-data = yf.download("GC=F", period="3mo", interval=timeframe)
+data = yf.download("XAUUSD=X", period="3mo", interval=timeframe)
 
 if data.empty:
     st.error("No data loaded. Try again.")
