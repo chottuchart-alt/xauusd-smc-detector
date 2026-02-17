@@ -11,10 +11,22 @@ st.title("🔥 AI XAUUSD PRO Smart Money System")
 timeframe = st.selectbox("Select Timeframe", ["1h", "4h", "1d"])
 
 # Download Data
-data = yf.download("XAUUSD=X", period="3mo", interval=timeframe)
+# Download Data (Robust Version)
+
+symbol = "XAUUSD=X"   # Better for gold spot
+
+try:
+    data = yf.download(symbol, period="3mo", interval=timeframe, progress=False)
+except:
+    data = pd.DataFrame()
+
+# If intraday fails, fallback to daily
+if data.empty and timeframe != "1d":
+    st.warning("Intraday data not available. Switching to Daily timeframe.")
+    data = yf.download(symbol, period="6mo", interval="1d", progress=False)
 
 if data.empty:
-    st.error("No data loaded. Try again.")
+    st.error("Data could not be loaded from Yahoo Finance.")
     st.stop()
 
 data = data.dropna().copy()
